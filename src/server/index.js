@@ -4,6 +4,7 @@ import React from 'react';
 import { Helmet } from 'react-helmet';
 import { renderToString } from 'react-dom/server';
 import { matchPath, StaticRouter } from 'react-router-dom';
+import StyleContext from 'isomorphic-style-loader/StyleContext'
 
 import App from '../shared/App';
 import { ROUTES } from "../shared/constants/Routes";
@@ -21,16 +22,20 @@ app.get('*', (req, res, next) => {
 
   const apiResponse = activeRoute.getInitialData ? activeRoute.getInitialData(req.path) : Promise.resolve();
 
+  const css = new Set();
+  const insertCss = (...styles) => styles.forEach(style => css.add(style._getCss()));
   apiResponse
       .then(data => {
         const markup = renderToString(
             <StaticRouter location={req.url} context={{ data }}>
-              <App />
+              <StyleContext.Provider value={{ insertCss }}>
+                <App />
+              </StyleContext.Provider>
             </StaticRouter>
         );
         const title = Helmet.renderStatic();
 
-        res.send(template(data, markup, title));
+        res.send(template(data, markup, title, css));
       })
       .catch(next);
 });
